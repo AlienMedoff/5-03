@@ -1,0 +1,29 @@
+groups:
+  - name: aether
+    rules:
+      - alert: BotDown
+        expr: up{job="aether_bot"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Aether бот упал"
+          description: "Бот не отвечает больше 1 минуты"
+
+      - alert: HighErrorRate
+        expr: rate(aether_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокий уровень ошибок"
+          description: "Больше 0.1 ошибок в секунду за последние 5 минут"
+
+      - alert: BotRestarted
+        expr: aether_uptime_seconds < 60
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "Бот перезапустился"
+          description: "Аптайм меньше 60 секунд"

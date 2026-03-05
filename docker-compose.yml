@@ -1,0 +1,84 @@
+version: "3.8"
+
+services:
+  bot:
+    build: .
+    restart: always
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./audit.log:/app/audit.log
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASS} --port 6379
+    restart: always
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+    security_opt:
+      - no-new-privileges:true
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    networks:
+      - internal
+    ports:
+      - "9090:9090"
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    restart: always
+    environment:
+      - ALERT_BOT_TOKEN=${ALERT_BOT_TOKEN}
+      - ALERT_CHAT_ID=${ALERT_CHAT_ID}
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    networks:
+      - internal
+    ports:
+      - "9093:9093"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - internal
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  redis_data:
+  prometheus_data:
+  grafana_data:
